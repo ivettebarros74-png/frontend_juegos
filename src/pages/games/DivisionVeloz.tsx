@@ -20,6 +20,11 @@ export const DivisionVeloz = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [showNewAchievements, setShowNewAchievements] = useState<string[]>([])
 
+  // Generar números al iniciar el componente
+  useEffect(() => {
+    generateNumbers()
+  }, [])
+
   const generateNumbers = () => {
     const divisor = Math.floor(Math.random() * 9) + 2 // 2-10
     const quotient = Math.floor(Math.random() * (level * 5)) + 1
@@ -28,90 +33,91 @@ export const DivisionVeloz = () => {
     setNum1(dividend)
     setNum2(divisor)
     setUserAnswer('')
-    setFeedback(null)
   }
 
-  useEffect(() => {
-    if (!gameOver) {
-      generateNumbers()
-    }
-  }, [level, gameOver])
-
+  // Temporizador
   useEffect(() => {
     if (timeLeft > 0 && !gameOver) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
       return () => clearTimeout(timer)
     } else if (timeLeft === 0 && !gameOver) {
-      endGame()
+      setGameOver(true)
     }
   }, [timeLeft, gameOver])
 
   const checkAnswer = () => {
-    const correctAnswer = num1 / num2
-    const answer = parseInt(userAnswer)
+    if (userAnswer.trim() === '') return
 
-    if (isNaN(answer)) return
+    const correctAnswer = Math.floor(num1 / num2)
+    const userNum = parseInt(userAnswer)
 
     setQuestionsAnswered(prev => prev + 1)
 
-    if (answer === correctAnswer) {
+    if (userNum === correctAnswer) {
+      setScore(prev => prev + (10 * level))
       setCorrectAnswers(prev => prev + 1)
-      const points = level * 20 // División vale más puntos
-      setScore(prev => prev + points)
       setFeedback('correct')
+      
+      setTimeout(() => {
+        setFeedback(null)
+        generateNumbers()
+      }, 500)
 
-      if ((questionsAnswered + 1) % 5 === 0) {
+      // Subir de nivel cada 5 respuestas correctas
+      if ((correctAnswers + 1) % 5 === 0) {
         setLevel(prev => prev + 1)
       }
-
-      setTimeout(() => generateNumbers(), 500)
     } else {
-      setWrongAnswers(prev => prev + 1)
       setLives(prev => prev - 1)
+      setWrongAnswers(prev => prev + 1)
       setFeedback('wrong')
+      
+      setTimeout(() => {
+        setFeedback(null)
+        generateNumbers()
+      }, 500)
 
       if (lives - 1 <= 0) {
-        endGame()
-      } else {
-        setTimeout(() => generateNumbers(), 500)
+        setGameOver(true)
       }
     }
   }
 
-  const endGame = async () => {
-    setGameOver(true)
-    await saveGameStats()
-  }
+  // Guardar sesión cuando termina el juego
+  useEffect(() => {
+    if (gameOver && questionsAnswered > 0 && !isSaving) {
+      saveGameSession()
+    }
+  }, [gameOver])
 
-  const saveGameStats = async () => {
+  const saveGameSession = async () => {
+    if (isSaving) return
+    
+    setIsSaving(true)
+    
+    const sessionData = {
+      userId: statsService.getUserId(),
+      gameId: 1,
+      gameName: 'DivisionVeloz',
+      category: 'Aritmética' as const,
+      score: score,
+      timePlayed: 60 - timeLeft,
+      level: level,
+      correctAnswers: correctAnswers,
+      wrongAnswers: wrongAnswers
+    }
+
     try {
-      setIsSaving(true)
-      const userId = statsService.getUserId()
-      
-      const result = await statsService.saveGameSession({
-        userId,
-        gameId: 4,
-        gameName: 'División',
-        category: 'Aritmética',
-        score,
-        timePlayed: 60 - timeLeft,
-        level,
-        correctAnswers,
-        wrongAnswers
-      })
-
-      if (result.newAchievements && result.newAchievements.length > 0) {
-        setShowNewAchievements(result.newAchievements)
-        setTimeout(() => setShowNewAchievements([]), 5000)
-      }
+      await statsService.saveGameSession(sessionData)
+      console.log('✅ Sesión guardada correctamente')
     } catch (error) {
-      console.error('❌ Error guardando estadísticas:', error)
+      console.error('❌ Error al guardar la sesión:', error)
     } finally {
       setIsSaving(false)
     }
   }
 
-  const restartGame = () => {
+  const resetGame = () => {
     setScore(0)
     setTimeLeft(60)
     setGameOver(false)
@@ -126,177 +132,158 @@ export const DivisionVeloz = () => {
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !gameOver) {
+    if (e.key === 'Enter' && !gameOver && userAnswer.trim() !== '') {
       checkAnswer()
     }
   }
 
   const accuracy = questionsAnswered > 0 
-    ? Math.round((correctAnswers / questionsAnswered) * 100) 
+    ? Math.round((correctAnswers / questionsAnswered) * 100)
     : 0
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
-        
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 mb-2">
-            ➗ División Desafío
-          </h1>
-          <p className="text-gray-600">¡Divide con precisión y velocidad!</p>
+    <div className='min-h-screen bg-gradient-to-br from-red-400 via-pink-500 to-purple-600 py-8 px-4'>
+      <div className='container mx-auto max-w-4xl'>
+        {/* Header */}
+        <div className='bg-white rounded-2xl shadow-2xl p-6 mb-6'>
+          <div className='flex items-center justify-between mb-4'>
+            <button
+              onClick={() => navigate('/games')}
+              className='bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition'
+            >
+              ← Volver
+            </button>
+            <h1 className='text-4xl font-extrabold text-center flex-1'>
+              ➗ División Veloz
+            </h1>
+            <div className='w-24'></div>
+          </div>
+
+          {/* Stats */}
+          <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+            <div className='bg-blue-100 rounded-lg p-3 text-center'>
+              <p className='text-sm text-blue-600 font-semibold'>Puntos</p>
+              <p className='text-2xl font-bold text-blue-800'>{score}</p>
+            </div>
+            <div className='bg-green-100 rounded-lg p-3 text-center'>
+              <p className='text-sm text-green-600 font-semibold'>Tiempo</p>
+              <p className='text-2xl font-bold text-green-800'>{timeLeft}s</p>
+            </div>
+            <div className='bg-purple-100 rounded-lg p-3 text-center'>
+              <p className='text-sm text-purple-600 font-semibold'>Nivel</p>
+              <p className='text-2xl font-bold text-purple-800'>{level}</p>
+            </div>
+            <div className='bg-red-100 rounded-lg p-3 text-center'>
+              <p className='text-sm text-red-600 font-semibold'>Vidas</p>
+              <p className='text-2xl font-bold text-red-800'>{'❤️'.repeat(lives)}</p>
+            </div>
+          </div>
         </div>
 
-        {showNewAchievements.length > 0 && (
-          <div className="mb-4 bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-xl p-4 animate-bounce">
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-3xl">🏆</span>
+        {/* Game Area */}
+        {!gameOver ? (
+          <div className='bg-white rounded-2xl shadow-2xl p-8'>
+            <div className='text-center mb-8'>
+              <div className='text-6xl font-bold text-gray-800 mb-4'>
+                {num1} ÷ {num2} = ?
+              </div>
+              
+              {feedback && (
+                <div className={`text-2xl font-bold mb-4 ${
+                  feedback === 'correct' ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {feedback === 'correct' ? '✓ ¡Correcto!' : '✗ Incorrecto'}
+                </div>
+              )}
+
+              <input
+                type='number'
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className='w-full max-w-xs text-center text-4xl font-bold border-4 border-purple-300 rounded-lg p-4 focus:outline-none focus:border-purple-500'
+                placeholder='?'
+                autoFocus
+                disabled={gameOver}
+              />
+            </div>
+
+            <button
+              onClick={checkAnswer}
+              disabled={userAnswer.trim() === ''}
+              className='w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-4 rounded-lg text-xl hover:from-purple-600 hover:to-pink-600 transition disabled:opacity-50 disabled:cursor-not-allowed'
+            >
+              Verificar Respuesta
+            </button>
+
+            {/* Progress */}
+            <div className='mt-6 grid grid-cols-3 gap-4 text-center text-sm'>
               <div>
-                <p className="font-bold">¡Nuevos Logros Desbloqueados!</p>
-                <p className="text-sm">{showNewAchievements.join(', ')}</p>
+                <p className='text-gray-600'>Respondidas</p>
+                <p className='text-2xl font-bold text-blue-600'>{questionsAnswered}</p>
+              </div>
+              <div>
+                <p className='text-gray-600'>Correctas</p>
+                <p className='text-2xl font-bold text-green-600'>{correctAnswers}</p>
+              </div>
+              <div>
+                <p className='text-gray-600'>Precisión</p>
+                <p className='text-2xl font-bold text-purple-600'>{accuracy}%</p>
               </div>
             </div>
           </div>
-        )}
-
-        {!gameOver ? (
-          <>
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-purple-600">{score}</div>
-                <div className="text-xs text-gray-600">Puntos</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-blue-600">{timeLeft}s</div>
-                <div className="text-xs text-gray-600">Tiempo</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-pink-100 to-pink-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-pink-600">Nv.{level}</div>
-                <div className="text-xs text-gray-600">Nivel</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-red-600">
-                  {'❤️'.repeat(lives)}
-                </div>
-                <div className="text-xs text-gray-600">Vidas</div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 mb-6">
-              <div className="text-center">
-                <div className="text-6xl font-bold text-gray-800 mb-4">
-                  {num1} ÷ {num2} = ?
-                </div>
-                
-                <input
-                  type="number"
-                  value={userAnswer}
-                  onChange={(e) => setUserAnswer(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  className={`text-4xl font-bold text-center w-full max-w-xs px-6 py-4 rounded-xl border-4 focus:outline-none transition ${
-                    feedback === 'correct' 
-                      ? 'border-green-500 bg-green-50' 
-                      : feedback === 'wrong'
-                      ? 'border-red-500 bg-red-50'
-                      : 'border-purple-300 focus:border-purple-500'
-                  }`}
-                  placeholder="?"
-                  autoFocus
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <button
-                onClick={checkAnswer}
-                disabled={!userAnswer}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                ✓ Verificar
-              </button>
-              
-              <button
-                onClick={() => navigate('/juegos')}
-                className="bg-gray-300 text-gray-700 font-bold py-4 px-6 rounded-xl hover:bg-gray-400 transition"
-              >
-                ← Salir
-              </button>
-            </div>
-
-            <div className="mt-4 text-center text-sm text-gray-600">
-              <span className="mr-4">✓ Correctas: {correctAnswers}</span>
-              <span className="mr-4">✗ Incorrectas: {wrongAnswers}</span>
-              <span>📊 Precisión: {accuracy}%</span>
-            </div>
-          </>
         ) : (
-          <div className="text-center">
-            <div className="text-6xl mb-4">
-              {score >= 400 ? '🏆' : score >= 200 ? '🎉' : '💪'}
+          // Game Over Screen
+          <div className='bg-white rounded-2xl shadow-2xl p-8 text-center'>
+            <div className='text-6xl mb-4'>
+              {lives > 0 ? '⏰' : '💔'}
             </div>
-            
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              {score >= 400 ? '¡Experto en División!' : score >= 200 ? '¡Buen trabajo!' : '¡Sigue practicando!'}
+            <h2 className='text-4xl font-bold text-gray-800 mb-4'>
+              {lives > 0 ? '¡Tiempo Agotado!' : '¡Juego Terminado!'}
             </h2>
             
-            <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-2xl p-6 mb-6">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-purple-600">{score}</div>
-                  <div className="text-sm text-gray-600">Puntuación Final</div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-pink-600">Nv.{level}</div>
-                  <div className="text-sm text-gray-600">Nivel Alcanzado</div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-green-600">{correctAnswers}</div>
-                  <div className="text-sm text-gray-600">Correctas</div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-blue-600">{accuracy}%</div>
-                  <div className="text-sm text-gray-600">Precisión</div>
-                </div>
-              </div>
-
-              {isSaving ? (
-                <div className="text-purple-600 font-semibold animate-pulse">
-                  💾 Guardando estadísticas...
-                </div>
-              ) : (
-                <div className="text-green-600 font-semibold">
-                  ✅ Estadísticas guardadas
-                </div>
-              )}
+            <div className='bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl p-6 mb-6'>
+              <p className='text-5xl font-bold text-purple-600 mb-2'>{score}</p>
+              <p className='text-gray-600'>Puntos Totales</p>
             </div>
 
-            <div className="flex gap-4">
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-6'>
+              <div className='bg-blue-50 rounded-lg p-4'>
+                <p className='text-sm text-blue-600'>Respondidas</p>
+                <p className='text-2xl font-bold text-blue-800'>{questionsAnswered}</p>
+              </div>
+              <div className='bg-green-50 rounded-lg p-4'>
+                <p className='text-sm text-green-600'>Correctas</p>
+                <p className='text-2xl font-bold text-green-800'>{correctAnswers}</p>
+              </div>
+              <div className='bg-red-50 rounded-lg p-4'>
+                <p className='text-sm text-red-600'>Incorrectas</p>
+                <p className='text-2xl font-bold text-red-800'>{wrongAnswers}</p>
+              </div>
+              <div className='bg-purple-50 rounded-lg p-4'>
+                <p className='text-sm text-purple-600'>Precisión</p>
+                <p className='text-2xl font-bold text-purple-800'>{accuracy}%</p>
+              </div>
+            </div>
+
+            <div className='flex gap-4'>
               <button
-                onClick={restartGame}
-                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-4 rounded-xl hover:from-purple-700 hover:to-pink-700 transition transform hover:scale-105"
+                onClick={resetGame}
+                className='flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 rounded-lg text-xl hover:from-green-600 hover:to-emerald-600 transition'
               >
                 🔄 Jugar de Nuevo
               </button>
-              
               <button
-                onClick={() => navigate('/dashboard')}
-                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition transform hover:scale-105"
+                onClick={() => navigate('/games')}
+                className='flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold py-4 rounded-lg text-xl hover:from-gray-600 hover:to-gray-700 transition'
               >
-                📊 Ver Dashboard
-              </button>
-              
-              <button
-                onClick={() => navigate('/juegos')}
-                className="bg-gray-300 text-gray-700 font-bold py-4 px-6 rounded-xl hover:bg-gray-400 transition"
-              >
-                ← Volver
+                🏠 Menú Principal
               </button>
             </div>
+
+            {isSaving && (
+              <p className='mt-4 text-gray-600'>💾 Guardando resultados...</p>
+            )}
           </div>
         )}
       </div>
