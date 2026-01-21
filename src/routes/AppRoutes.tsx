@@ -23,12 +23,12 @@ export const AppRoutes = () => {
       <Route path="/dashboard" element={<MainLayout><Dashboard /></MainLayout>} />
       
       {/* Rutas de juegos */}
-      <Route path="/juego/1" element={<SumaRapida />} />
-      <Route path="/juego/2" element={<MultiplicacionMaster />} />
-      <Route path="/juego/3" element={<DivisionVeloz />} />
-      <Route path="/juego/4" element={<RestaChampions />} />
-      <Route path="/juego/5" element={<EcuacionesPro />} />
-      <Route path="/juego/6" element={<GeometriaEspacial />} />
+      <Route path="/juego/6" element={<SumaRapida />} />
+      <Route path="/juego/4" element={<MultiplicacionMaster />} />
+      <Route path="/juego/1" element={<DivisionVeloz />} />
+      <Route path="/juego/5" element={<RestaChampions />} />
+      <Route path="/juego/2" element={<EcuacionesPro />} />
+      <Route path="/juego/3" element={<GeometriaEspacial />} />
     </Routes>
   )
 }
