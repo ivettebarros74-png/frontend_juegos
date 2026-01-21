@@ -79,7 +79,7 @@ class StatsService {
   // Obtener estadísticas del usuario
   async getUserStats(userId: string): Promise<UserStats> {
     try {
-      const response = await axios.get(`${API_URL}/user/${userId}`)
+      const response = await axios.get(`${API_URL}/stats/user/${userId}`)
       console.log('✅ Estadísticas obtenidas:', response.data)
       return response.data
     } catch (error) {
@@ -91,7 +91,7 @@ class StatsService {
   // Guardar sesión de juego
   async saveGameSession(sessionData: GameSessionData) {
     try {
-      const response = await axios.post(`${API_URL}/session`, sessionData)
+      const response = await axios.post(`${API_URL}/stats/session`, sessionData)
       console.log('✅ Partida guardada:', response.data)
       return response.data
     } catch (error) {
@@ -111,7 +111,7 @@ class StatsService {
       const params: any = { limit, page }
       if (gameId) params.gameId = gameId
 
-      const response = await axios.get(`${API_URL}/history/${userId}`, { params })
+      const response = await axios.get(`${API_URL}/stats/history/${userId}`, { params })
       console.log('✅ Historial obtenido:', response.data)
       return response.data
     } catch (error) {
@@ -126,7 +126,7 @@ class StatsService {
       const params: any = { limit }
       if (category) params.category = category
 
-      const response = await axios.get(`${API_URL}/leaderboard`, { params })
+      const response = await axios.get(`${API_URL}/stats/leaderboard`, { params })
       console.log('✅ Ranking obtenido:', response.data)
       return response.data
     } catch (error) {
@@ -138,7 +138,7 @@ class StatsService {
   // Resetear estadísticas (solo para testing)
   async resetUserStats(userId: string) {
     try {
-      const response = await axios.delete(`${API_URL}/reset/${userId}`)
+      const response = await axios.delete(`${API_URL}/stats/reset/${userId}`)
       console.log('✅ Estadísticas reseteadas:', response.data)
       return response.data
     } catch (error) {
