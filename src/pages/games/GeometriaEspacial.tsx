@@ -28,9 +28,7 @@ export const GeometriaEspacial = () => {
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null)
   const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [showNewAchievements, setShowNewAchievements] = useState<string[]>([])
 
-  // Generar pregunta de geometría
   const generateQuestion = (): Question => {
     const figures: Question['figure'][] = ['cuadrado', 'rectangulo', 'triangulo', 'circulo', 'trapecio']
     const operations: Question['operation'][] = ['area', 'perimetro']
@@ -78,7 +76,6 @@ export const GeometriaEspacial = () => {
           correctAnswer = Math.round((baseTriangulo * alturaTriangulo) / 2)
           formula = 'Área = (base × altura) / 2'
         } else {
-          // Perímetro aproximado (triángulo equilátero)
           correctAnswer = baseTriangulo * 3
           formula = 'Perímetro ≈ 3 × base'
         }
@@ -111,7 +108,6 @@ export const GeometriaEspacial = () => {
         break
     }
 
-    // Generar opciones de respuesta
     const options = [correctAnswer]
     while (options.length < 4) {
       const offset = Math.floor(Math.random() * 20) - 10
@@ -121,7 +117,6 @@ export const GeometriaEspacial = () => {
       }
     }
 
-    // Mezclar opciones
     options.sort(() => Math.random() - 0.5)
 
     return {
@@ -134,14 +129,12 @@ export const GeometriaEspacial = () => {
     }
   }
 
-  // Iniciar juego
   useEffect(() => {
     if (!gameOver) {
       setCurrentQuestion(generateQuestion())
     }
   }, [level, gameOver])
 
-  // Timer
   useEffect(() => {
     if (timeLeft > 0 && !gameOver) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
@@ -151,7 +144,6 @@ export const GeometriaEspacial = () => {
     }
   }, [timeLeft, gameOver])
 
-  // Verificar respuesta
   const checkAnswer = (answer: number) => {
     if (!currentQuestion || selectedAnswer !== null) return
 
@@ -192,34 +184,32 @@ export const GeometriaEspacial = () => {
     }
   }
 
-  const endGame = async () => {
+  const endGame = () => {
     setGameOver(true)
-    await saveGameStats()
+    saveGameStats()
   }
 
   const saveGameStats = async () => {
-    try {
-      setIsSaving(true)
-      const userId = statsService.getUserId()
-      
-      const result = await statsService.saveGameSession({
-        userId,
-        gameId: 6,
-        gameName: 'Geometría',
-        category: 'Geometría',
-        score,
-        timePlayed: 120 - timeLeft,
-        level,
-        correctAnswers,
-        wrongAnswers
-      })
+    if (isSaving || questionsAnswered === 0) return
+    
+    setIsSaving(true)
+    
+    const sessionData = {
+      userId: statsService.getUserId(),
+      gameId: 6,
+      gameName: 'GeometriaEspacial',
+      category: 'Geometría' as const,
+      score: score,
+      timePlayed: 120 - timeLeft,
+      level: level,
+      correctAnswers: correctAnswers,
+      wrongAnswers: wrongAnswers
+    }
 
-      if (result.newAchievements && result.newAchievements.length > 0) {
-        setShowNewAchievements(result.newAchievements)
-        setTimeout(() => setShowNewAchievements([]), 5000)
-      }
+    try {
+      await statsService.saveGameSession(sessionData)
     } catch (error) {
-      console.error('❌ Error guardando estadísticas:', error)
+      console.error('Error al guardar la sesión:', error)
     } finally {
       setIsSaving(false)
     }
@@ -238,7 +228,6 @@ export const GeometriaEspacial = () => {
     setFeedback(null)
     setSelectedAnswer(null)
     setShowFormula(false)
-    setShowNewAchievements([])
     setCurrentQuestion(generateQuestion())
   }
 
@@ -246,7 +235,6 @@ export const GeometriaEspacial = () => {
     ? Math.round((correctAnswers / questionsAnswered) * 100) 
     : 0
 
-  // Renderizar figura
   const renderFigure = () => {
     if (!currentQuestion) return null
 
@@ -320,201 +308,163 @@ export const GeometriaEspacial = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-cyan-500 to-blue-700 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-3xl w-full">
-        
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-600 to-blue-600 mb-2">
-            📐 Geometría Genio
-          </h1>
-          <p className="text-gray-600">¡Calcula áreas y perímetros!</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-cyan-400 via-blue-500 to-purple-600 py-8 px-4">
+      <div className="container mx-auto max-w-4xl">
+        <div className="bg-white rounded-2xl shadow-2xl p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <button
+              onClick={() => navigate('/juegos')}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition"
+            >
+              ← Volver
+            </button>
+            <h1 className="text-4xl font-extrabold text-center flex-1">
+              📐 Geometría Genio
+            </h1>
+            <button
+              onClick={() => navigate('/stats')}
+              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition"
+            >
+              📊 Stats
+            </button>
+          </div>
 
-        {showNewAchievements.length > 0 && (
-          <div className="mb-4 bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-xl p-4 animate-bounce">
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-3xl">🏆</span>
-              <div>
-                <p className="font-bold">¡Nuevos Logros Desbloqueados!</p>
-                <p className="text-sm">{showNewAchievements.join(', ')}</p>
-              </div>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="bg-blue-100 rounded-lg p-3 text-center">
+              <p className="text-sm text-blue-600 font-semibold">Puntos</p>
+              <p className="text-2xl font-bold text-blue-800">{score}</p>
+            </div>
+            <div className="bg-green-100 rounded-lg p-3 text-center">
+              <p className="text-sm text-green-600 font-semibold">Tiempo</p>
+              <p className="text-2xl font-bold text-green-800" key={timeLeft}>{timeLeft}s</p>
+            </div>
+            <div className="bg-purple-100 rounded-lg p-3 text-center">
+              <p className="text-sm text-purple-600 font-semibold">Nivel</p>
+              <p className="text-2xl font-bold text-purple-800">{level}</p>
+            </div>
+            <div className="bg-red-100 rounded-lg p-3 text-center">
+              <p className="text-sm text-red-600 font-semibold">Vidas</p>
+              <p className="text-2xl font-bold text-red-800">{'❤️'.repeat(lives)}</p>
+            </div>
+            <div className="bg-orange-100 rounded-lg p-3 text-center">
+              <p className="text-sm text-orange-600 font-semibold">Racha</p>
+              <p className="text-2xl font-bold text-orange-800">🔥{streak}</p>
             </div>
           </div>
-        )}
+        </div>
 
         {!gameOver && currentQuestion ? (
-          <>
-            {/* Stats */}
-            <div className="grid grid-cols-5 gap-3 mb-6">
-              <div className="bg-gradient-to-br from-cyan-100 to-cyan-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-cyan-600">{score}</div>
-                <div className="text-xs text-gray-600">Puntos</div>
-              </div>
+          <div className="bg-white rounded-2xl shadow-2xl p-8">
+            <div className="text-center mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">
+                Calcula el {currentQuestion.operation} del {getFigureName()}
+              </h2>
               
-              <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-blue-600">{timeLeft}s</div>
-                <div className="text-xs text-gray-600">Tiempo</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-purple-600">Nv.{level}</div>
-                <div className="text-xs text-gray-600">Nivel</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-red-600">
-                  {'❤️'.repeat(lives)}
-                </div>
-                <div className="text-xs text-gray-600">Vidas</div>
+              <div className="flex justify-center my-6">
+                {renderFigure()}
               </div>
 
-              <div className="bg-gradient-to-br from-orange-100 to-orange-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-orange-600">🔥{streak}</div>
-                <div className="text-xs text-gray-600">Racha</div>
-              </div>
-            </div>
-
-            {/* Pregunta */}
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 mb-6">
-              <div className="text-center mb-4">
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">
-                  Calcula el {currentQuestion.operation} del {getFigureName()}
-                </h2>
-                
-                <div className="flex justify-center my-6">
-                  {renderFigure()}
-                </div>
-
-                {/* Botón mostrar fórmula */}
-                <button
-                  onClick={() => setShowFormula(!showFormula)}
-                  className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition text-sm mb-4"
-                >
-                  {showFormula ? '🙈 Ocultar' : '💡 Ver'} Fórmula
-                </button>
-
-                {showFormula && (
-                  <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-3 mb-4">
-                    <p className="text-blue-800 font-semibold">{currentQuestion.formula}</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Opciones */}
-              <div className="grid grid-cols-2 gap-4">
-                {currentQuestion.options.map((option, idx) => {
-                  const isSelected = selectedAnswer === option
-                  const isCorrect = option === currentQuestion.correctAnswer
-                  
-                  let buttonClass = 'bg-white border-4 border-gray-300 hover:border-cyan-400'
-                  
-                  if (isSelected) {
-                    if (feedback === 'correct') {
-                      buttonClass = 'bg-green-100 border-4 border-green-500'
-                    } else if (feedback === 'wrong') {
-                      buttonClass = 'bg-red-100 border-4 border-red-500'
-                    }
-                  } else if (feedback === 'wrong' && isCorrect) {
-                    buttonClass = 'bg-green-100 border-4 border-green-500'
-                  }
-
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => checkAnswer(option)}
-                      disabled={selectedAnswer !== null}
-                      className={`${buttonClass} text-2xl font-bold py-6 rounded-xl transition transform hover:scale-105 disabled:cursor-not-allowed`}
-                    >
-                      {option}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Botones */}
-            <div className="flex gap-4">
               <button
-                onClick={() => navigate('/juegos')}
-                className="flex-1 bg-gray-300 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-400 transition"
+                onClick={() => setShowFormula(!showFormula)}
+                className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition text-sm mb-4"
               >
-                ← Salir
+                {showFormula ? '🙈 Ocultar' : '💡 Ver'} Fórmula
               </button>
+
+              {showFormula && (
+                <div className="bg-blue-50 border-2 border-blue-300 rounded-lg p-3 mb-4">
+                  <p className="text-blue-800 font-semibold">{currentQuestion.formula}</p>
+                </div>
+              )}
             </div>
 
-            <div className="mt-4 text-center text-sm text-gray-600">
+            <div className="grid grid-cols-2 gap-4 mb-6">
+              {currentQuestion.options.map((option, idx) => {
+                const isSelected = selectedAnswer === option
+                const isCorrect = option === currentQuestion.correctAnswer
+                
+                let buttonClass = 'bg-white border-4 border-gray-300 hover:border-cyan-400'
+                
+                if (isSelected) {
+                  if (feedback === 'correct') {
+                    buttonClass = 'bg-green-100 border-4 border-green-500'
+                  } else if (feedback === 'wrong') {
+                    buttonClass = 'bg-red-100 border-4 border-red-500'
+                  }
+                } else if (feedback === 'wrong' && isCorrect) {
+                  buttonClass = 'bg-green-100 border-4 border-green-500'
+                }
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => checkAnswer(option)}
+                    disabled={selectedAnswer !== null}
+                    className={`${buttonClass} text-2xl font-bold py-6 rounded-xl transition transform hover:scale-105 disabled:cursor-not-allowed`}
+                  >
+                    {option}
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="text-center text-sm text-gray-600">
               <span className="mr-4">✓ Correctas: {correctAnswers}</span>
               <span className="mr-4">✗ Incorrectas: {wrongAnswers}</span>
               <span>📊 Precisión: {accuracy}%</span>
             </div>
-          </>
+          </div>
         ) : (
-          /* Game Over */
-          <div className="text-center">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 text-center">
             <div className="text-6xl mb-4">
-              {score >= 600 ? '🏆' : score >= 300 ? '🎉' : '💪'}
+              {lives > 0 ? '⏰' : '💔'}
             </div>
-            
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              {score >= 600 ? '¡Genio de la Geometría!' : score >= 300 ? '¡Gran trabajo!' : '¡Sigue practicando!'}
+            <h2 className="text-4xl font-bold text-gray-800 mb-4">
+              {lives > 0 ? '¡Tiempo Agotado!' : '¡Juego Terminado!'}
             </h2>
             
-            <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-2xl p-6 mb-6">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-cyan-600">{score}</div>
-                  <div className="text-sm text-gray-600">Puntuación Final</div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-blue-600">Nv.{level}</div>
-                  <div className="text-sm text-gray-600">Nivel Alcanzado</div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-green-600">{correctAnswers}</div>
-                  <div className="text-sm text-gray-600">Correctas</div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-purple-600">{accuracy}%</div>
-                  <div className="text-sm text-gray-600">Precisión</div>
-                </div>
-              </div>
+            <div className="bg-gradient-to-r from-cyan-100 to-blue-100 rounded-xl p-6 mb-6">
+              <p className="text-5xl font-bold text-cyan-600 mb-2">{score}</p>
+              <p className="text-gray-600">Puntos Totales</p>
+            </div>
 
-              {isSaving ? (
-                <div className="text-cyan-600 font-semibold animate-pulse">
-                  💾 Guardando estadísticas...
-                </div>
-              ) : (
-                <div className="text-green-600 font-semibold">
-                  ✅ Estadísticas guardadas
-                </div>
-              )}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm text-blue-600">Respondidas</p>
+                <p className="text-2xl font-bold text-blue-800">{questionsAnswered}</p>
+              </div>
+              <div className="bg-green-50 rounded-lg p-4">
+                <p className="text-sm text-green-600">Correctas</p>
+                <p className="text-2xl font-bold text-green-800">{correctAnswers}</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-4">
+                <p className="text-sm text-red-600">Incorrectas</p>
+                <p className="text-2xl font-bold text-red-800">{wrongAnswers}</p>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-4">
+                <p className="text-sm text-purple-600">Precisión</p>
+                <p className="text-2xl font-bold text-purple-800">{accuracy}%</p>
+              </div>
             </div>
 
             <div className="flex gap-4">
               <button
                 onClick={restartGame}
-                className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold py-4 rounded-xl hover:from-cyan-700 hover:to-blue-700 transition transform hover:scale-105"
+                className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 rounded-lg text-xl hover:from-green-600 hover:to-emerald-600 transition"
               >
                 🔄 Jugar de Nuevo
               </button>
-              
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition transform hover:scale-105"
-              >
-                📊 Ver Dashboard
-              </button>
-              
               <button
                 onClick={() => navigate('/juegos')}
-                className="bg-gray-300 text-gray-700 font-bold py-4 px-6 rounded-xl hover:bg-gray-400 transition"
+                className="flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold py-4 rounded-lg text-xl hover:from-gray-600 hover:to-gray-700 transition"
               >
-                ← Volver
+                🏠 Menú Principal
               </button>
             </div>
+
+            {isSaving && (
+              <p className="mt-4 text-gray-600">💾 Guardando resultados...</p>
+            )}
           </div>
         )}
       </div>
