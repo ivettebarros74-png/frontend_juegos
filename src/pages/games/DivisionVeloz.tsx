@@ -20,20 +20,23 @@ export const DivisionVeloz = () => {
   const [isSaving, setIsSaving] = useState(false)
   const [showNewAchievements, setShowNewAchievements] = useState<string[]>([])
 
-  // Generar números al iniciar el componente
-  useEffect(() => {
-    generateNumbers()
-  }, [])
-
+  // Función para generar números
   const generateNumbers = () => {
     const divisor = Math.floor(Math.random() * 9) + 2 // 2-10
     const quotient = Math.floor(Math.random() * (level * 5)) + 1
     const dividend = divisor * quotient // Asegurar división exacta
     
+    console.log('Generando números:', { dividend, divisor, level }) // Debug
+    
     setNum1(dividend)
     setNum2(divisor)
     setUserAnswer('')
   }
+
+  // Generar números al iniciar y cuando cambia el nivel
+  useEffect(() => {
+    generateNumbers()
+  }, [level])
 
   // Temporizador
   useEffect(() => {
@@ -51,35 +54,50 @@ export const DivisionVeloz = () => {
     const correctAnswer = Math.floor(num1 / num2)
     const userNum = parseInt(userAnswer)
 
-    setQuestionsAnswered(prev => prev + 1)
+    console.log('Verificando:', { num1, num2, correctAnswer, userNum }) // Debug
 
     if (userNum === correctAnswer) {
+      const newCorrectAnswers = correctAnswers + 1
+      const newQuestionsAnswered = questionsAnswered + 1
+      
       setScore(prev => prev + (10 * level))
-      setCorrectAnswers(prev => prev + 1)
+      setCorrectAnswers(newCorrectAnswers)
+      setQuestionsAnswered(newQuestionsAnswered)
       setFeedback('correct')
       
-      setTimeout(() => {
-        setFeedback(null)
-        generateNumbers()
-      }, 500)
-
-      // Subir de nivel cada 5 respuestas correctas
-      if ((correctAnswers + 1) % 5 === 0) {
-        setLevel(prev => prev + 1)
-      }
-    } else {
-      setLives(prev => prev - 1)
-      setWrongAnswers(prev => prev + 1)
-      setFeedback('wrong')
+      console.log('¡Correcto!', { newCorrectAnswers, newQuestionsAnswered }) // Debug
       
       setTimeout(() => {
         setFeedback(null)
-        generateNumbers()
+        
+        // Subir de nivel cada 5 respuestas correctas
+        if (newCorrectAnswers % 5 === 0) {
+          setLevel(prev => prev + 1)
+        } else {
+          generateNumbers() // Solo generar si no cambia el nivel
+        }
       }, 500)
-
-      if (lives - 1 <= 0) {
-        setGameOver(true)
-      }
+    } else {
+      const newLives = lives - 1
+      const newWrongAnswers = wrongAnswers + 1
+      const newQuestionsAnswered = questionsAnswered + 1
+      
+      setLives(newLives)
+      setWrongAnswers(newWrongAnswers)
+      setQuestionsAnswered(newQuestionsAnswered)
+      setFeedback('wrong')
+      
+      console.log('Incorrecto', { newLives, newWrongAnswers }) // Debug
+      
+      setTimeout(() => {
+        setFeedback(null)
+        
+        if (newLives <= 0) {
+          setGameOver(true)
+        } else {
+          generateNumbers()
+        }
+      }, 500)
     }
   }
 
@@ -128,7 +146,8 @@ export const DivisionVeloz = () => {
     setWrongAnswers(0)
     setFeedback(null)
     setShowNewAchievements([])
-    generateNumbers()
+    setUserAnswer('')
+    // generateNumbers se llamará automáticamente por el useEffect cuando level cambie a 1
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
