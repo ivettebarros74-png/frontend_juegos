@@ -10,7 +10,7 @@ export const EcuacionesPro = () => {
   const [c, setC] = useState(0)
   const [userAnswer, setUserAnswer] = useState('')
   const [score, setScore] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(90) // Más tiempo porque es más difícil
+  const [timeLeft, setTimeLeft] = useState(90)
   const [gameOver, setGameOver] = useState(false)
   const [level, setLevel] = useState(1)
   const [lives, setLives] = useState(3)
@@ -19,11 +19,9 @@ export const EcuacionesPro = () => {
   const [correctAnswers, setCorrectAnswers] = useState(0)
   const [wrongAnswers, setWrongAnswers] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
-  const [showNewAchievements, setShowNewAchievements] = useState<string[]>([])
 
-  // Generar ecuación tipo: ax + b = c, encontrar x
   const generateEquation = () => {
-    const x = Math.floor(Math.random() * 10) + 1 // Solución
+    const x = Math.floor(Math.random() * 10) + 1
     const aVal = Math.floor(Math.random() * 5) + 1
     const bVal = Math.floor(Math.random() * 20) - 10
     const cVal = aVal * x + bVal
@@ -32,92 +30,108 @@ export const EcuacionesPro = () => {
     setB(bVal)
     setC(cVal)
     setUserAnswer('')
-    setFeedback(null)
   }
 
   useEffect(() => {
-    if (!gameOver) {
-      generateEquation()
-    }
-  }, [level, gameOver])
+    generateEquation()
+  }, [])
 
   useEffect(() => {
     if (timeLeft > 0 && !gameOver) {
       const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
       return () => clearTimeout(timer)
     } else if (timeLeft === 0 && !gameOver) {
-      endGame()
+      setGameOver(true)
     }
   }, [timeLeft, gameOver])
 
   const checkAnswer = () => {
-    // x = (c - b) / a
+    if (userAnswer.trim() === '') return
+
     const correctAnswer = (c - b) / a
-    const answer = parseFloat(userAnswer)
+    const userNum = parseFloat(userAnswer)
 
-    if (isNaN(answer)) return
+    if (isNaN(userNum)) return
 
-    setQuestionsAnswered(prev => prev + 1)
-
-    // Permitir pequeña tolerancia en decimales
-    if (Math.abs(answer - correctAnswer) < 0.01) {
-      setCorrectAnswers(prev => prev + 1)
-      const points = level * 25 // Álgebra vale más puntos
-      setScore(prev => prev + points)
+    if (Math.abs(userNum - correctAnswer) < 0.01) {
+      const newCorrectAnswers = correctAnswers + 1
+      const newQuestionsAnswered = questionsAnswered + 1
+      
+      setScore(prev => prev + (25 * level))
+      setCorrectAnswers(newCorrectAnswers)
+      setQuestionsAnswered(newQuestionsAnswered)
       setFeedback('correct')
-
-      if ((questionsAnswered + 1) % 4 === 0) {
-        setLevel(prev => prev + 1)
-      }
-
-      setTimeout(() => generateEquation(), 500)
+      
+      setTimeout(() => {
+        setFeedback(null)
+        
+        if (newCorrectAnswers % 4 === 0) {
+          setLevel(prev => prev + 1)
+        } else {
+          generateEquation()
+        }
+      }, 500)
     } else {
-      setWrongAnswers(prev => prev + 1)
-      setLives(prev => prev - 1)
+      const newLives = lives - 1
+      const newWrongAnswers = wrongAnswers + 1
+      const newQuestionsAnswered = questionsAnswered + 1
+      
+      setLives(newLives)
+      setWrongAnswers(newWrongAnswers)
+      setQuestionsAnswered(newQuestionsAnswered)
       setFeedback('wrong')
-
-      if (lives - 1 <= 0) {
-        endGame()
-      } else {
-        setTimeout(() => generateEquation(), 500)
-      }
+      
+      setTimeout(() => {
+        setFeedback(null)
+        
+        if (newLives <= 0) {
+          setGameOver(true)
+        } else {
+          generateEquation()
+        }
+      }, 500)
     }
   }
 
-  const endGame = async () => {
-    setGameOver(true)
-    await saveGameStats()
-  }
+  useEffect(() => {
+    if (level > 1) {
+      generateEquation()
+    }
+  }, [level])
 
-  const saveGameStats = async () => {
+  useEffect(() => {
+    if (gameOver && questionsAnswered > 0 && !isSaving) {
+      saveGameSession()
+    }
+  }, [gameOver])
+
+  const saveGameSession = async () => {
+    if (isSaving) return
+    
+    setIsSaving(true)
+    
+    const sessionData = {
+      userId: statsService.getUserId(),
+      gameId: 5,
+      gameName: 'EcuacionesPro',
+      category: 'Álgebra' as const,
+      score: score,
+      timePlayed: 90 - timeLeft,
+      level: level,
+      correctAnswers: correctAnswers,
+      wrongAnswers: wrongAnswers
+    }
+
     try {
-      setIsSaving(true)
-      const userId = statsService.getUserId()
-      
-      const result = await statsService.saveGameSession({
-        userId,
-        gameId: 5,
-        gameName: 'Ecuaciones',
-        category: 'Álgebra',
-        score,
-        timePlayed: 90 - timeLeft,
-        level,
-        correctAnswers,
-        wrongAnswers
-      })
-
-      if (result.newAchievements && result.newAchievements.length > 0) {
-        setShowNewAchievements(result.newAchievements)
-        setTimeout(() => setShowNewAchievements([]), 5000)
-      }
+      await statsService.saveGameSession(sessionData)
     } catch (error) {
-      console.error('❌ Error guardando estadísticas:', error)
+      console.error('Error al guardar la sesión:', error)
     } finally {
       setIsSaving(false)
     }
   }
 
-  const restartGame = () => {
+  const resetGame = () => {
     setScore(0)
     setTimeLeft(90)
     setGameOver(false)
@@ -127,195 +141,176 @@ export const EcuacionesPro = () => {
     setCorrectAnswers(0)
     setWrongAnswers(0)
     setFeedback(null)
-    setShowNewAchievements([])
-    generateEquation()
+    setUserAnswer('')
+    setTimeout(() => generateEquation(), 100)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !gameOver) {
+    if (e.key === 'Enter' && !gameOver && userAnswer.trim() !== '') {
       checkAnswer()
     }
   }
 
   const accuracy = questionsAnswered > 0 
-    ? Math.round((correctAnswers / questionsAnswered) * 100) 
+    ? Math.round((correctAnswers / questionsAnswered) * 100)
     : 0
 
-  // Formatear ecuación
   const formatEquation = () => {
     const bStr = b >= 0 ? `+ ${b}` : `- ${Math.abs(b)}`
     return `${a}x ${bStr} = ${c}`
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-500 to-purple-700 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-2xl w-full">
-        
-        <div className="text-center mb-6">
-          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-purple-600 mb-2">
-            📐 Ecuaciones Experto
-          </h1>
-          <p className="text-gray-600">¡Resuelve ecuaciones lineales!</p>
+    <div className='min-h-screen bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-600 py-8 px-4'>
+      <div className='container mx-auto max-w-4xl'>
+        <div className='bg-white rounded-2xl shadow-2xl p-6 mb-6'>
+          <div className='flex items-center justify-between mb-4'>
+            <button
+              onClick={() => navigate('/juegos')}
+              className='bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded-lg transition'
+            >
+              ← Volver
+            </button>
+            <h1 className='text-4xl font-extrabold text-center flex-1'>
+              📐 Ecuaciones Pro
+            </h1>
+            <button
+              onClick={() => navigate('/stats')}
+              className='bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition'
+            >
+              📊 Stats
+            </button>
+          </div>
+
+          <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
+            <div className='bg-blue-100 rounded-lg p-3 text-center'>
+              <p className='text-sm text-blue-600 font-semibold'>Puntos</p>
+              <p className='text-2xl font-bold text-blue-800'>{score}</p>
+            </div>
+            <div className='bg-green-100 rounded-lg p-3 text-center'>
+              <p className='text-sm text-green-600 font-semibold'>Tiempo</p>
+              <p className='text-2xl font-bold text-green-800' key={timeLeft}>{timeLeft}s</p>
+            </div>
+            <div className='bg-purple-100 rounded-lg p-3 text-center'>
+              <p className='text-sm text-purple-600 font-semibold'>Nivel</p>
+              <p className='text-2xl font-bold text-purple-800'>{level}</p>
+            </div>
+            <div className='bg-red-100 rounded-lg p-3 text-center'>
+              <p className='text-sm text-red-600 font-semibold'>Vidas</p>
+              <p className='text-2xl font-bold text-red-800'>{'❤️'.repeat(lives)}</p>
+            </div>
+          </div>
         </div>
 
-        {showNewAchievements.length > 0 && (
-          <div className="mb-4 bg-gradient-to-r from-yellow-400 to-orange-400 text-white rounded-xl p-4 animate-bounce">
-            <div className="flex items-center justify-center gap-2">
-              <span className="text-3xl">🏆</span>
+        {!gameOver ? (
+          <div className='bg-white rounded-2xl shadow-2xl p-8'>
+            <div className='text-center mb-8'>
+              <div className='text-6xl font-bold text-gray-800 mb-4' key={`${a}-${b}-${c}`}>
+                {formatEquation()}
+              </div>
+              
+              <p className='text-2xl text-gray-600 mb-6'>
+                Encuentra el valor de <span className='font-bold text-indigo-600'>x</span>
+              </p>
+              
+              {feedback && (
+                <div className={`text-2xl font-bold mb-4 ${
+                  feedback === 'correct' ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  {feedback === 'correct' ? '✓ ¡Correcto!' : '✗ Incorrecto'}
+                </div>
+              )}
+
+              <div className='flex items-center justify-center gap-3 mb-6'>
+                <span className='text-3xl font-bold text-gray-700'>x =</span>
+                <input
+                  type='number'
+                  step='0.01'
+                  value={userAnswer}
+                  onChange={(e) => setUserAnswer(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  className='w-full max-w-xs text-center text-4xl font-bold border-4 border-indigo-300 rounded-lg p-4 focus:outline-none focus:border-indigo-500'
+                  placeholder='?'
+                  autoFocus
+                  disabled={gameOver}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={checkAnswer}
+              disabled={userAnswer.trim() === ''}
+              className='w-full bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-bold py-4 rounded-lg text-xl hover:from-indigo-600 hover:to-purple-600 transition disabled:opacity-50 disabled:cursor-not-allowed'
+            >
+              Verificar Respuesta
+            </button>
+
+            <div className='mt-6 grid grid-cols-3 gap-4 text-center text-sm'>
               <div>
-                <p className="font-bold">¡Nuevos Logros Desbloqueados!</p>
-                <p className="text-sm">{showNewAchievements.join(', ')}</p>
+                <p className='text-gray-600'>Respondidas</p>
+                <p className='text-2xl font-bold text-blue-600'>{questionsAnswered}</p>
+              </div>
+              <div>
+                <p className='text-gray-600'>Correctas</p>
+                <p className='text-2xl font-bold text-green-600'>{correctAnswers}</p>
+              </div>
+              <div>
+                <p className='text-gray-600'>Precisión</p>
+                <p className='text-2xl font-bold text-purple-600'>{accuracy}%</p>
               </div>
             </div>
           </div>
-        )}
-
-        {!gameOver ? (
-          <>
-            <div className="grid grid-cols-4 gap-4 mb-6">
-              <div className="bg-gradient-to-br from-indigo-100 to-indigo-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-indigo-600">{score}</div>
-                <div className="text-xs text-gray-600">Puntos</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-blue-600">{timeLeft}s</div>
-                <div className="text-xs text-gray-600">Tiempo</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-purple-100 to-purple-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-purple-600">Nv.{level}</div>
-                <div className="text-xs text-gray-600">Nivel</div>
-              </div>
-              
-              <div className="bg-gradient-to-br from-red-100 to-red-200 rounded-xl p-3 text-center">
-                <div className="text-2xl font-bold text-red-600">
-                  {'❤️'.repeat(lives)}
-                </div>
-                <div className="text-xs text-gray-600">Vidas</div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-8 mb-6">
-              <div className="text-center">
-                <div className="text-5xl font-bold text-gray-800 mb-4">
-                  {formatEquation()}
-                </div>
-                <div className="text-2xl text-gray-600 mb-4">
-                  Encuentra el valor de <span className="font-bold text-indigo-600">x</span>
-                </div>
-                
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-2xl font-bold text-gray-700">x =</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={userAnswer}
-                    onChange={(e) => setUserAnswer(e.target.value)}
-                    onKeyPress={handleKeyPress}
-                    className={`text-4xl font-bold text-center w-48 px-6 py-4 rounded-xl border-4 focus:outline-none transition ${
-                      feedback === 'correct' 
-                        ? 'border-green-500 bg-green-50' 
-                        : feedback === 'wrong'
-                        ? 'border-red-500 bg-red-50'
-                        : 'border-indigo-300 focus:border-indigo-500'
-                    }`}
-                    placeholder="?"
-                    autoFocus
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <button
-                onClick={checkAnswer}
-                disabled={!userAnswer}
-                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                ✓ Verificar
-              </button>
-              
-              <button
-                onClick={() => navigate('/juegos')}
-                className="bg-gray-300 text-gray-700 font-bold py-4 px-6 rounded-xl hover:bg-gray-400 transition"
-              >
-                ← Salir
-              </button>
-            </div>
-
-            <div className="mt-4 text-center text-sm text-gray-600">
-              <span className="mr-4">✓ Correctas: {correctAnswers}</span>
-              <span className="mr-4">✗ Incorrectas: {wrongAnswers}</span>
-              <span>📊 Precisión: {accuracy}%</span>
-            </div>
-          </>
         ) : (
-          <div className="text-center">
-            <div className="text-6xl mb-4">
-              {score >= 500 ? '🏆' : score >= 250 ? '🎉' : '💪'}
+          <div className='bg-white rounded-2xl shadow-2xl p-8 text-center'>
+            <div className='text-6xl mb-4'>
+              {lives > 0 ? '⏰' : '💔'}
             </div>
-            
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              {score >= 500 ? '¡Eres un Genio!' : score >= 250 ? '¡Excelente!' : '¡Sigue practicando!'}
+            <h2 className='text-4xl font-bold text-gray-800 mb-4'>
+              {lives > 0 ? '¡Tiempo Agotado!' : '¡Juego Terminado!'}
             </h2>
             
-            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 rounded-2xl p-6 mb-6">
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-indigo-600">{score}</div>
-                  <div className="text-sm text-gray-600">Puntuación Final</div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-purple-600">Nv.{level}</div>
-                  <div className="text-sm text-gray-600">Nivel Alcanzado</div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-green-600">{correctAnswers}</div>
-                  <div className="text-sm text-gray-600">Correctas</div>
-                </div>
-                
-                <div className="bg-white rounded-xl p-4">
-                  <div className="text-3xl font-bold text-blue-600">{accuracy}%</div>
-                  <div className="text-sm text-gray-600">Precisión</div>
-                </div>
-              </div>
-
-              {isSaving ? (
-                <div className="text-indigo-600 font-semibold animate-pulse">
-                  💾 Guardando estadísticas...
-                </div>
-              ) : (
-                <div className="text-green-600 font-semibold">
-                  ✅ Estadísticas guardadas
-                </div>
-              )}
+            <div className='bg-gradient-to-r from-indigo-100 to-purple-100 rounded-xl p-6 mb-6'>
+              <p className='text-5xl font-bold text-indigo-600 mb-2'>{score}</p>
+              <p className='text-gray-600'>Puntos Totales</p>
             </div>
 
-            <div className="flex gap-4">
+            <div className='grid grid-cols-2 md:grid-cols-4 gap-4 mb-6'>
+              <div className='bg-blue-50 rounded-lg p-4'>
+                <p className='text-sm text-blue-600'>Respondidas</p>
+                <p className='text-2xl font-bold text-blue-800'>{questionsAnswered}</p>
+              </div>
+              <div className='bg-green-50 rounded-lg p-4'>
+                <p className='text-sm text-green-600'>Correctas</p>
+                <p className='text-2xl font-bold text-green-800'>{correctAnswers}</p>
+              </div>
+              <div className='bg-red-50 rounded-lg p-4'>
+                <p className='text-sm text-red-600'>Incorrectas</p>
+                <p className='text-2xl font-bold text-red-800'>{wrongAnswers}</p>
+              </div>
+              <div className='bg-purple-50 rounded-lg p-4'>
+                <p className='text-sm text-purple-600'>Precisión</p>
+                <p className='text-2xl font-bold text-purple-800'>{accuracy}%</p>
+              </div>
+            </div>
+
+            <div className='flex gap-4'>
               <button
-                onClick={restartGame}
-                className="flex-1 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold py-4 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition transform hover:scale-105"
+                onClick={resetGame}
+                className='flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 rounded-lg text-xl hover:from-green-600 hover:to-emerald-600 transition'
               >
                 🔄 Jugar de Nuevo
               </button>
-              
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="flex-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white font-bold py-4 rounded-xl hover:from-green-700 hover:to-emerald-700 transition transform hover:scale-105"
-              >
-                📊 Ver Dashboard
-              </button>
-              
               <button
                 onClick={() => navigate('/juegos')}
-                className="bg-gray-300 text-gray-700 font-bold py-4 px-6 rounded-xl hover:bg-gray-400 transition"
+                className='flex-1 bg-gradient-to-r from-gray-500 to-gray-600 text-white font-bold py-4 rounded-lg text-xl hover:from-gray-600 hover:to-gray-700 transition'
               >
-                ← Volver
+                🏠 Menú Principal
               </button>
             </div>
+
+            {isSaving && (
+              <p className='mt-4 text-gray-600'>💾 Guardando resultados...</p>
+            )}
           </div>
         )}
       </div>
