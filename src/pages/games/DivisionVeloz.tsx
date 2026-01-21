@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { statsService } from '../../services/statsService'
 
@@ -18,25 +18,24 @@ export const DivisionVeloz = () => {
   const [correctAnswers, setCorrectAnswers] = useState(0)
   const [wrongAnswers, setWrongAnswers] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
-  const [, setShowNewAchievements] = useState<string[]>([])
 
-  // Función para generar números
-  const generateNumbers = () => {
+  // Usar useCallback para memoizar la función
+  const generateNumbers = useCallback(() => {
     const divisor = Math.floor(Math.random() * 9) + 2 // 2-10
     const quotient = Math.floor(Math.random() * (level * 5)) + 1
     const dividend = divisor * quotient // Asegurar división exacta
     
-    console.log('Generando números:', { dividend, divisor, level }) // Debug
+    console.log('Generando números:', { dividend, divisor, level })
     
     setNum1(dividend)
     setNum2(divisor)
     setUserAnswer('')
-  }
+  }, [level])
 
-  // Generar números al iniciar y cuando cambia el nivel
+  // Generar números solo al iniciar
   useEffect(() => {
     generateNumbers()
-  }, [level])
+  }, [generateNumbers])
 
   // Temporizador
   useEffect(() => {
@@ -54,7 +53,7 @@ export const DivisionVeloz = () => {
     const correctAnswer = Math.floor(num1 / num2)
     const userNum = parseInt(userAnswer)
 
-    console.log('Verificando:', { num1, num2, correctAnswer, userNum }) // Debug
+    console.log('Verificando:', { num1, num2, correctAnswer, userNum })
 
     if (userNum === correctAnswer) {
       const newCorrectAnswers = correctAnswers + 1
@@ -65,7 +64,7 @@ export const DivisionVeloz = () => {
       setQuestionsAnswered(newQuestionsAnswered)
       setFeedback('correct')
       
-      console.log('¡Correcto!', { newCorrectAnswers, newQuestionsAnswered }) // Debug
+      console.log('¡Correcto!', { newCorrectAnswers, newQuestionsAnswered })
       
       setTimeout(() => {
         setFeedback(null)
@@ -74,7 +73,7 @@ export const DivisionVeloz = () => {
         if (newCorrectAnswers % 5 === 0) {
           setLevel(prev => prev + 1)
         } else {
-          generateNumbers() // Solo generar si no cambia el nivel
+          generateNumbers()
         }
       }, 500)
     } else {
@@ -87,7 +86,7 @@ export const DivisionVeloz = () => {
       setQuestionsAnswered(newQuestionsAnswered)
       setFeedback('wrong')
       
-      console.log('Incorrecto', { newLives, newWrongAnswers }) // Debug
+      console.log('Incorrecto', { newLives, newWrongAnswers })
       
       setTimeout(() => {
         setFeedback(null)
@@ -106,7 +105,7 @@ export const DivisionVeloz = () => {
     if (gameOver && questionsAnswered > 0 && !isSaving) {
       saveGameSession()
     }
-  }, [gameOver])
+  }, [gameOver, questionsAnswered, isSaving])
 
   const saveGameSession = async () => {
     if (isSaving) return
@@ -145,9 +144,8 @@ export const DivisionVeloz = () => {
     setCorrectAnswers(0)
     setWrongAnswers(0)
     setFeedback(null)
-    setShowNewAchievements([])
     setUserAnswer('')
-    // generateNumbers se llamará automáticamente por el useEffect cuando level cambie a 1
+    setTimeout(() => generateNumbers(), 100)
   }
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -252,7 +250,6 @@ export const DivisionVeloz = () => {
             </div>
           </div>
         ) : (
-          // Game Over Screen
           <div className='bg-white rounded-2xl shadow-2xl p-8 text-center'>
             <div className='text-6xl mb-4'>
               {lives > 0 ? '⏰' : '💔'}
