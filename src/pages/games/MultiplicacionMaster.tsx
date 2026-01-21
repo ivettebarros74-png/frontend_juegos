@@ -179,7 +179,7 @@ export const MultiplicacionMaster = () => {
             </div>
             <div className='bg-green-100 rounded-lg p-3 text-center'>
               <p className='text-sm text-green-600 font-semibold'>Tiempo</p>
-              <p className='text-2xl font-bold text-green-800'>{timeLeft}s</p>
+              <p className='text-2xl font-bold text-green-800' key={timeLeft}>{timeLeft}s</p>
             </div>
             <div className='bg-purple-100 rounded-lg p-3 text-center'>
               <p className='text-sm text-purple-600 font-semibold'>Nivel</p>
