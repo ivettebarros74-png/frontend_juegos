@@ -19,35 +19,25 @@ export const DivisionVeloz = () => {
   const [wrongAnswers, setWrongAnswers] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
 
-  // Función para generar números - SIN useCallback
   const generateNumbers = () => {
-    const divisor = Math.floor(Math.random() * 9) + 2 // 2-10
+    const divisor = Math.floor(Math.random() * 9) + 2
     const quotient = Math.floor(Math.random() * (level * 5)) + 1
-    const dividend = divisor * quotient // Asegurar división exacta
-    
-    console.log('🎲 Generando números:', { dividend, divisor, level, timestamp: Date.now() })
+    const dividend = divisor * quotient
     
     setNum1(dividend)
     setNum2(divisor)
     setUserAnswer('')
   }
 
-  // Generar números solo al iniciar
   useEffect(() => {
-    console.log('🎮 Componente montado, generando números iniciales')
     generateNumbers()
-  }, []) // Array vacío - solo al montar
+  }, [])
 
-  // Temporizador
   useEffect(() => {
     if (timeLeft > 0 && !gameOver) {
-      const timer = setTimeout(() => {
-        console.log('⏱️ Tiempo:', timeLeft - 1)
-        setTimeLeft(timeLeft - 1)
-      }, 1000)
+      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
       return () => clearTimeout(timer)
     } else if (timeLeft === 0 && !gameOver) {
-      console.log('⏰ Tiempo agotado!')
       setGameOver(true)
     }
   }, [timeLeft, gameOver])
@@ -58,13 +48,9 @@ export const DivisionVeloz = () => {
     const correctAnswer = Math.floor(num1 / num2)
     const userNum = parseInt(userAnswer)
 
-    console.log('🔍 Verificando:', { num1, num2, correctAnswer, userNum })
-
     if (userNum === correctAnswer) {
       const newCorrectAnswers = correctAnswers + 1
       const newQuestionsAnswered = questionsAnswered + 1
-      
-      console.log('✅ ¡Correcto!', { newCorrectAnswers, newQuestionsAnswered })
       
       setScore(prev => prev + (10 * level))
       setCorrectAnswers(newCorrectAnswers)
@@ -74,13 +60,9 @@ export const DivisionVeloz = () => {
       setTimeout(() => {
         setFeedback(null)
         
-        // Subir de nivel cada 5 respuestas correctas
         if (newCorrectAnswers % 5 === 0) {
-          console.log('⬆️ Subiendo de nivel!')
           setLevel(prev => prev + 1)
-          // generateNumbers se llamará automáticamente cuando level cambie
         } else {
-          console.log('➡️ Generando siguiente pregunta')
           generateNumbers()
         }
       }, 500)
@@ -88,8 +70,6 @@ export const DivisionVeloz = () => {
       const newLives = lives - 1
       const newWrongAnswers = wrongAnswers + 1
       const newQuestionsAnswered = questionsAnswered + 1
-      
-      console.log('❌ Incorrecto', { newLives, newWrongAnswers })
       
       setLives(newLives)
       setWrongAnswers(newWrongAnswers)
@@ -100,25 +80,20 @@ export const DivisionVeloz = () => {
         setFeedback(null)
         
         if (newLives <= 0) {
-          console.log('💔 Game Over - sin vidas')
           setGameOver(true)
         } else {
-          console.log('➡️ Generando siguiente pregunta')
           generateNumbers()
         }
       }, 500)
     }
   }
 
-  // Regenerar números cuando sube el nivel
   useEffect(() => {
     if (level > 1) {
-      console.log('📈 Nivel actualizado:', level)
       generateNumbers()
     }
   }, [level])
 
-  // Guardar sesión cuando termina el juego
   useEffect(() => {
     if (gameOver && questionsAnswered > 0 && !isSaving) {
       saveGameSession()
@@ -144,16 +119,14 @@ export const DivisionVeloz = () => {
 
     try {
       await statsService.saveGameSession(sessionData)
-      console.log('✅ Sesión guardada correctamente')
     } catch (error) {
-      console.error('❌ Error al guardar la sesión:', error)
+      console.error('Error al guardar la sesión:', error)
     } finally {
       setIsSaving(false)
     }
   }
 
   const resetGame = () => {
-    console.log('🔄 Reiniciando juego')
     setScore(0)
     setTimeLeft(60)
     setGameOver(false)
@@ -177,12 +150,9 @@ export const DivisionVeloz = () => {
     ? Math.round((correctAnswers / questionsAnswered) * 100)
     : 0
 
-  console.log('🖼️ Renderizando:', { num1, num2, timeLeft, level, score })
-
   return (
     <div className='min-h-screen bg-gradient-to-br from-red-400 via-pink-500 to-purple-600 py-8 px-4'>
       <div className='container mx-auto max-w-4xl'>
-        {/* Header */}
         <div className='bg-white rounded-2xl shadow-2xl p-6 mb-6'>
           <div className='flex items-center justify-between mb-4'>
             <button
@@ -194,10 +164,14 @@ export const DivisionVeloz = () => {
             <h1 className='text-4xl font-extrabold text-center flex-1'>
               ➗ División Veloz
             </h1>
-            <div className='w-24'></div>
+            <button
+              onClick={() => navigate('/stats')}
+              className='bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition'
+            >
+              📊 Stats
+            </button>
           </div>
 
-          {/* Stats */}
           <div className='grid grid-cols-2 md:grid-cols-4 gap-4'>
             <div className='bg-blue-100 rounded-lg p-3 text-center'>
               <p className='text-sm text-blue-600 font-semibold'>Puntos</p>
@@ -218,7 +192,6 @@ export const DivisionVeloz = () => {
           </div>
         </div>
 
-        {/* Game Area */}
         {!gameOver ? (
           <div className='bg-white rounded-2xl shadow-2xl p-8'>
             <div className='text-center mb-8'>
@@ -254,7 +227,6 @@ export const DivisionVeloz = () => {
               Verificar Respuesta
             </button>
 
-            {/* Progress */}
             <div className='mt-6 grid grid-cols-3 gap-4 text-center text-sm'>
               <div>
                 <p className='text-gray-600'>Respondidas</p>
