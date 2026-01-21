@@ -18,7 +18,7 @@ export const DivisionVeloz = () => {
   const [correctAnswers, setCorrectAnswers] = useState(0)
   const [wrongAnswers, setWrongAnswers] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
-  const [showNewAchievements, setShowNewAchievements] = useState<string[]>([])
+  const [, setShowNewAchievements] = useState<string[]>([])
 
   // Función para generar números
   const generateNumbers = () => {
